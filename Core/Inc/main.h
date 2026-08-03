@@ -69,6 +69,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define Vsns_Pin LL_GPIO_PIN_2
+#define Vsns_GPIO_Port GPIOA
+#define Isns_Pin LL_GPIO_PIN_3
+#define Isns_GPIO_Port GPIOA
+#define Vset_Pin LL_GPIO_PIN_4
+#define Vset_GPIO_Port GPIOA
+#define Iset_Pin LL_GPIO_PIN_5
+#define Iset_GPIO_Port GPIOA
+#define V12sns_Pin LL_GPIO_PIN_2
+#define V12sns_GPIO_Port GPIOB
 #define OUT_EN_Pin LL_GPIO_PIN_8
 #define OUT_EN_GPIO_Port GPIOA
 #define ADDR0_Pin LL_GPIO_PIN_0
