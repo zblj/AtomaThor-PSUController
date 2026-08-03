@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "eeprom.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,6 +123,11 @@ int main(void)
   status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
   status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
+  // EEPROM setup
+  uint8_t eeprom_writeData[32] = {0};
+  uint8_t eeprom_readData[32] = {0};
+  struct eeprom memory = {&hi2c1, 0xA0, 2, 32};
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -144,6 +149,13 @@ int main(void)
       }
     }
     
+    // EEPROM test to validate the functionality
+    uint16_t address = 0;
+    uint16_t size = 4;
+    status = EEPROM_Write(memory, address, size, eeprom_writeData, 1000);
+    status = EEPROM_Read(memory, address, size, eeprom_readData, 1000);
+    HAL_Delay(2);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
