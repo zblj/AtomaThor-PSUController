@@ -116,13 +116,24 @@ int main(void)
   MX_DAC1_Init();
   MX_LPTIM1_Init();
   /* USER CODE BEGIN 2 */
-  
+  HAL_StatusTypeDef status;
+  uint16_t DACvalue = 0;
+
+  // DACs need to be started prior to use. That is not the same as HAL init!
+  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // DAC test to validate functionality; DACs are 12b
+    status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, DACvalue);
+    status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DACvalue);
+    DACvalue += 1;
+    HAL_Delay(2);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
