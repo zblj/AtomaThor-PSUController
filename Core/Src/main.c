@@ -85,6 +85,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  SCB->VTOR = 0x08000000; // Bugfix, doesn't work without that (sets correct interrupt vector table)
 
   /* USER CODE END 1 */
 
