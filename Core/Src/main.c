@@ -130,6 +130,14 @@ int main(void)
   uint8_t eeprom_readData[32] = {0};
   struct eeprom memory = {&hi2c1, 0xA0, 2, 32};
 
+  // ADC setup; perform self calibration
+  HAL_ADCEx_Calibration_Start(&hadc1);
+  ADC_ChannelConfTypeDef ADCcfg = {0};
+  ADCcfg.Rank = ADC_REGULAR_RANK_1;
+  ADCcfg.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  ADCcfg.Channel = ADC_CHANNEL_10;//ADC_CHANNEL_TEMPSENSOR;
+  volatile uint16_t ADCmsmnt;
+  float temperature, Vsns, Vref, Vpwr;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -150,6 +158,13 @@ int main(void)
         foo=i;
       }
     }
+    // ADC test for validation
+    status = HAL_ADC_ConfigChannel(&hadc1, &ADCcfg);
+    status = HAL_ADC_Start(&hadc1);
+    status = HAL_ADC_PollForConversion(&hadc1, 1);
+    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    Vsns = ADCmsmnt*(2.5/(1<<16));
+    Vpwr = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
     
     // EEPROM test to validate the functionality
     uint16_t address = 0;
