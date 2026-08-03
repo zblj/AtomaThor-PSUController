@@ -134,6 +134,16 @@ int main(void)
     status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DACvalue);
     DACvalue += 1;
     HAL_Delay(2);
+
+    // I2C scanner; finds connected devices;
+    volatile uint8_t foo;
+    for (int i=0; i<128; i++){
+      status = HAL_I2C_IsDeviceReady(&hi2c1, (uint8_t)i<<1, 1, 100);
+      if (status == HAL_OK){
+        foo=i;
+      }
+    }
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
