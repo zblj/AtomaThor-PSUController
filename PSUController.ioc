@@ -1,6 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
 ADC1.Channel-1\#ChannelRegularConversion=ADC_CHANNEL_TEMPSENSOR
-ADC1.IPParameters=Rank-1\#ChannelRegularConversion,Channel-1\#ChannelRegularConversion,SamplingTime-1\#ChannelRegularConversion,NbrOfConversionFlag,OversamplingMode,Ratio,RightBitShift,master,SelectedChannel
+ADC1.EnableAnalogWatchDog1=false
+ADC1.IPParameters=Rank-1\#ChannelRegularConversion,Channel-1\#ChannelRegularConversion,SamplingTime-1\#ChannelRegularConversion,NbrOfConversionFlag,OversamplingMode,Ratio,RightBitShift,master,SelectedChannel,EnableAnalogWatchDog1
 ADC1.NbrOfConversionFlag=1
 ADC1.OversamplingMode=ENABLE
 ADC1.Rank-1\#ChannelRegularConversion=1
@@ -90,8 +91,6 @@ PA2.GPIOParameters=GPIO_Label
 PA2.GPIO_Label=Vsns
 PA2.Mode=IN2
 PA2.Signal=ADC1_IN2
-PA3.GPIOParameters=GPIO_Label
-PA3.GPIO_Label=Isns
 PA3.Mode=IN3
 PA3.Signal=ADC1_IN3
 PA4.GPIOParameters=GPIO_Label

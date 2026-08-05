@@ -71,8 +71,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define Vsns_Pin LL_GPIO_PIN_2
 #define Vsns_GPIO_Port GPIOA
-#define Isns_Pin LL_GPIO_PIN_3
-#define Isns_GPIO_Port GPIOA
 #define Vset_Pin LL_GPIO_PIN_4
 #define Vset_GPIO_Port GPIOA
 #define Iset_Pin LL_GPIO_PIN_5
