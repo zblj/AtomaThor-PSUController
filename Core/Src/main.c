@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "eeprom.h"
+#include "stm32g0xx_ll_gpio.h"
 #include "supportingFunctions.h"
 #include "stm32_hal_legacy.h"
 #include "stm32g051xx.h"
@@ -209,6 +210,12 @@ int main(void)
                   (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
                   ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
                   TS_CAL1_TEMP;
+    
+    // Demonstrate GPIO output
+    LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+    HAL_Delay(1000);
+    LL_GPIO_ResetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+    HAL_Delay(1000);
     
 
     /* USER CODE END WHILE */
@@ -669,8 +676,13 @@ static void MX_GPIO_Init(void)
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOD);
 
   /**/
+  LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+
+  /**/
   GPIO_InitStruct.Pin = OUT_EN_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(OUT_EN_GPIO_Port, &GPIO_InitStruct);
 
