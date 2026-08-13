@@ -22,6 +22,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "eeprom.h"
+#include "boardCommands.h"
+#include <string.h>
+#include "stm32g0xx_hal_uart.h"
 #include "stm32g0xx_ll_gpio.h"
 #include "supportingFunctions.h"
 #include "stm32_hal_legacy.h"
@@ -161,6 +164,14 @@ int main(void)
     // Variables used in validation
     volatile uint16_t ADCmsmnt;
     float temperature, Vsns, Vref, Vpwr;
+
+    // Enable interrupt based communication for RS485 (UART)
+    // Enable auto baud rate; USARTn_RQR_ABBRQ must be set. It fires only once until "USARTn->ISR ABRF" flag is cleared, done by writing "USART1->RQR = USART_RQR_ABRRQ"
+    // USART1->CR2 |= (1 << USART_CR2_ABREN_Pos) | (0x03 << USART_CR2_ABRMODE_Pos);  // Enable Auto Baud Rate and set it to mode 3 (detect 0x55, 'D')
+    USART1->CR1 |= USART_CR1_RXNEIE_RXFNEIE;  // Enable Rx interrupts
+    
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -217,6 +228,10 @@ int main(void)
     LL_GPIO_ResetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
     HAL_Delay(1000);
     
+    // Call the command processing routine 
+    //USART1->RQR = USART_RQR_ABRRQ;  // Reenable ABR for testing purposes
+
+    processCommand();
 
     /* USER CODE END WHILE */
 
@@ -624,7 +639,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -633,9 +648,7 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_AUTOBAUDRATE_INIT;
-  huart1.AdvancedInit.AutoBaudRateEnable = UART_ADVFEATURE_AUTOBAUDRATE_ENABLE;
-  huart1.AdvancedInit.AutoBaudRateMode = UART_ADVFEATURE_AUTOBAUDRATE_ONSTARTBIT;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_RS485Ex_Init(&huart1, UART_DE_POLARITY_HIGH, 0, 0) != HAL_OK)
   {
     Error_Handler();

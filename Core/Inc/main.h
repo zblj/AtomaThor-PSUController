@@ -71,6 +71,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define Vsns_Pin LL_GPIO_PIN_2
 #define Vsns_GPIO_Port GPIOA
+#define Isns_Pin LL_GPIO_PIN_3
+#define Isns_GPIO_Port GPIOA
 #define Vset_Pin LL_GPIO_PIN_4
 #define Vset_GPIO_Port GPIOA
 #define Iset_Pin LL_GPIO_PIN_5
@@ -89,6 +91,13 @@ void Error_Handler(void);
 #define ADDR3_GPIO_Port GPIOD
 
 /* USER CODE BEGIN Private defines */
+extern ADC_HandleTypeDef hadc1;
+extern DAC_HandleTypeDef hdac1;
+extern I2C_HandleTypeDef hi2c1;
+extern LPTIM_HandleTypeDef hlptim1;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
+extern UART_HandleTypeDef huart1;
 
 /* USER CODE END Private defines */
 

@@ -47,6 +47,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     "Core/Src/eeprom.c"
     "Core/Src/supportingFunctions.c"
+    "Core/Src/boardCommands.c"
 )
 
 # Add include paths
