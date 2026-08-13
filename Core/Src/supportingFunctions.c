@@ -55,3 +55,12 @@ int oneHotDecode_unitTest(void){
     }
     return 0;
 }
+// Calculates decimals of a float to make printing easier // sprintf(str, "%i.%0*i", (int)num, n, (int)getDecimals(num, n))
+unsigned int getDecimals(float num, uint8_t n){
+    num = num-(int)num; // remove the whole part
+    //return num*pow(10,n); // This function is heavy on FLASH...
+    for(int i=0; i<n; i++){
+        num *= 10;
+    }
+    return (unsigned int)num;
+}

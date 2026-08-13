@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "supportingFunctions.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -217,18 +218,19 @@ void readAdc(const char *params){
         
         else{
             Vsns = ADCmsmnt*(2.5/(1<<16));
+            // %f formatting can be enabled by adding "set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u _printf_float")" to "cmake\gcc-arm-none-eabi.cmake", but it consumes 12 kB of FLASH
             if (channel == 'u'){
                 // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Vsns = %.2f V\n", Vsns);
+                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Vsns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
             }
             else if (channel == 'i'){
                 // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Isns = %.2f V\n", Vsns);
+                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Isns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
             }
             if (channel == 'p'){
                 // TODO add calibration and calculations
                 Vsns = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Main board supply is at %.2f V\n", Vsns);
+                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Main board supply is at %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
             }
             else if (channel == 't'){
                 float temperature;
@@ -236,7 +238,7 @@ void readAdc(const char *params){
                 (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
                 ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
                 TS_CAL1_TEMP;
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "MCU core temperature is %.2f °C\n", temperature);
+                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "MCU core temperature is %i.%0*i C\n", (int)temperature, 2, (int)getDecimals(temperature, 2));
             }
         }
     }
