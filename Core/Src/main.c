@@ -149,9 +149,9 @@ int main(void)
   
     // Set ADC sample time
     ADC1->SMPR =
-    (ADC_SAMPLETIME_1CYCLE_5 << ADC_SMPR_SMP1_Pos) |    // SMP1 set sampling time, will be used for all cahnnels
-    (ADC_SAMPLETIME_160CYCLES_5 << ADC_SMPR_SMP2_Pos) | // Excpet for those using a longer sampling time, listed in next line
-    (1U << ADC_SMPR_SMPSEL12_Pos);                      // Required at least for internal temperature sensor
+        (ADC_SAMPLETIME_1CYCLE_5 << ADC_SMPR_SMP1_Pos) |    // SMP1 set sampling time, will be used for all cahnnels
+        (ADC_SAMPLETIME_160CYCLES_5 << ADC_SMPR_SMP2_Pos) | // Excpet for those using a longer sampling time, listed in next line
+        (1U << ADC_SMPR_SMPSEL12_Pos);                      // Required at least for internal temperature sensor
   
     // Internal temperature sensor calibration parameters
     #define TS_CAL1_TEMP    30.0f      // °C
@@ -176,61 +176,61 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  
   while (1)
   {
-    // DAC test to validate functionality; DACs are 12b
-    status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, DACvalue);
-    status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DACvalue);
-    DACvalue += 1;
-    HAL_Delay(2);
+    // // DAC test to validate functionality; DACs are 12b
+    // status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, DACvalue);
+    // status = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DACvalue);
+    // DACvalue += 1;
+    // HAL_Delay(2);
 
-    // I2C scanner; finds connected devices;
-    volatile uint8_t foo;
-    for (int i=0; i<128; i++){
-      status = HAL_I2C_IsDeviceReady(&hi2c1, (uint8_t)i<<1, 1, 100);
-      if (status == HAL_OK){
-        foo=i;
-      }
-    }
+    // // I2C scanner; finds connected devices;
+    // volatile uint8_t foo;
+    // for (int i=0; i<128; i++){
+    //   status = HAL_I2C_IsDeviceReady(&hi2c1, (uint8_t)i<<1, 1, 100);
+    //   if (status == HAL_OK){
+    //     foo=i;
+    //   }
+    // }
     
-    // EEPROM test to validate the functionality
-    uint16_t address = 0;
-    uint16_t size = 4;
-    status = EEPROM_Write(memory, address, size, eeprom_writeData, 1000);
-    status = EEPROM_Read(memory, address, size, eeprom_readData, 1000);
-    HAL_Delay(2);
+    // // EEPROM test to validate the functionality
+    // uint16_t address = 0;
+    // uint16_t size = 4;
+    // status = EEPROM_Write(memory, address, size, eeprom_writeData, 1000);
+    // status = EEPROM_Read(memory, address, size, eeprom_readData, 1000);
+    // HAL_Delay(2);
 
-    // ADC test for validation
-      //ADCcfg.Channel = ADC_CHANNEL_TEMPSENSOR;
-      //status = HAL_ADC_ConfigChannel(&hadc1, &ADCcfg);  // This function causes problems
-    // To Select channel, set the channel index define in oneHotdecode (or replace the function call and simply specify channel index).
-    // Position in sequencer can be specified as well, if that is used.
-    ADC1->CHSELR = (oneHotDecode(ADC_CHANNEL_TEMPSENSOR & 0x3FFFF) & 0xf) << ADC_CHSELR_SQ1_Pos; // decode one hot (mask additional info first), mask in case of an error, bitshift to the appropriate position
-    status = HAL_ADC_Start(&hadc1);
-    status = HAL_ADC_PollForConversion(&hadc1, 1);
-    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    // // ADC test for validation
+    //   //ADCcfg.Channel = ADC_CHANNEL_TEMPSENSOR;
+    //   //status = HAL_ADC_ConfigChannel(&hadc1, &ADCcfg);  // This function causes problems
+    // // To Select channel, set the channel index define in oneHotdecode (or replace the function call and simply specify channel index).
+    // // Position in sequencer can be specified as well, if that is used.
+    // ADC1->CHSELR = (oneHotDecode(ADC_CHANNEL_TEMPSENSOR & 0x3FFFF) & 0xf) << ADC_CHSELR_SQ1_Pos; // decode one hot (mask additional info first), mask in case of an error, bitshift to the appropriate position
+    // status = HAL_ADC_Start(&hadc1);
+    // status = HAL_ADC_PollForConversion(&hadc1, 1);
+    // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
 
-    // Calculate voltage from ADC code
-    Vsns = ADCmsmnt*(2.5/(1<<16));
+    // // Calculate voltage from ADC code
+    // Vsns = ADCmsmnt*(2.5/(1<<16));
 
-    // Calculate the monitored 12V input (when the corresponding ADC channel is selected)
-    Vpwr = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
+    // // Calculate the monitored 12V input (when the corresponding ADC channel is selected)
+    // Vpwr = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
 
-    // Calculate temperature (long sample time, temp. sensor enabled, correct ADC channel selected). Not that the first few samples may be wrong.
-    temperature = (Vsns - (*TS_CAL1_ADDR *3./4096.)) *
-                  (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
-                  ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
-                  TS_CAL1_TEMP;
+    // // Calculate temperature (long sample time, temp. sensor enabled, correct ADC channel selected). Not that the first few samples may be wrong.
+    // temperature = (Vsns - (*TS_CAL1_ADDR *3./4096.)) *
+    //               (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
+    //               ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
+    //               TS_CAL1_TEMP;
     
-    // Demonstrate GPIO output
-    LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
-    HAL_Delay(1000);
-    LL_GPIO_ResetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
-    HAL_Delay(1000);
+    // // Demonstrate GPIO output
+    // LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+    // HAL_Delay(1000);
+    // LL_GPIO_ResetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+    // HAL_Delay(1000);
     
-    // Call the command processing routine 
+    // Call the command processing routine (RS485)
     //USART1->RQR = USART_RQR_ABRRQ;  // Reenable ABR for testing purposes
-
     processCommand();
 
     /* USER CODE END WHILE */
