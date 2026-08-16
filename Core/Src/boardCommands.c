@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "stm32g0xx_hal.h"
 #include "supportingFunctions.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -53,8 +54,10 @@ void fcn2(const char *params)
 static const Command commands[] = {
     { fcn1, "fn1" },
     { fcn2, "fn2" },
-    { setDac, "setDac"},
     { readAdc, "readAdc"},
+    { checkPower, "pwr"},
+    { readSensors, "sns"},
+    { readSensorsRaw, "snsRaw"},
     /* ... */
 };
 
@@ -249,30 +252,145 @@ void readAdc(const char *params){
     rxidx = 0;
     commandReceived = 0;
 }
-void setDac(const char *params){
-    int nextParam;
-    nextParam = findNextCommandParameter(params);
-    int num = atoi(params+nextParam);
-    // Sanity check for valid range
-    if ((num<0) || (num>=(1<<12))){
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Parameter out of range, must be [0,4095] (is %i)\n", num);
-    }
-    else {
-        HAL_StatusTypeDef status;
-        status  = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, num);
-        status |= HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, num);
-        // This error handling if iffy at best
-        if (status){
-            txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Setting DAC returned an error (0x%x)\n", status);
-        }
-        else{
-            txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "DACs set to %i\n", num);
-        }
-    }
 
+void checkPower(const char *params){
+    HAL_StatusTypeDef status = 0;
+    uint16_t ADCmsmnt;
+    float Vsns1, Vsns2;
+
+    ADC1->CHSELR = 1 << ADC_CHSELR_SQ1_Pos; // Primary power is on ADC1
+    status |= HAL_ADC_Start(&hadc1);
+    status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    Vsns1 = ADCmsmnt*(2.5/(1<<16))*11;
+
+    ADC1->CHSELR = 0 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
+    status |= HAL_ADC_Start(&hadc1);
+    status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    Vsns2 = ADCmsmnt*(2.5/(1<<16))*11;
+    // This error handling if iffy at best
+    if (status){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
+    }
+    
+    txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "V1 = %i.%0*i V, V2 = %i.%0*i V\n", (int)Vsns1, 2, (int)getDecimals(Vsns1, 2), (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
+    
     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
     txidx = 0;
     rxcnt = 0;
     rxidx = 0;
     commandReceived = 0;
+}
+
+void readSensors(const char *params){
+    HAL_StatusTypeDef status = 0;
+    uint16_t ADCmsmnt;
+    float Vsns1, Vsns2, id1, id2;
+
+    // HAL_Delay(100);
+    // ADC1->CHSELR = 6 << ADC_CHSELR_SQ1_Pos; // Primary power is on ADC1
+    // status |= HAL_ADC_Start(&hadc1);
+    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    // ADCmsmnt = ADC1->DR;
+    // Vsns1 = ADCmsmnt*(2.5/(1<<16))*4;
+
+    // HAL_Delay(100);
+    // ADC1->CHSELR = 2 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
+    // status |= HAL_ADC_Start(&hadc1);
+    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    // ADCmsmnt = ADC1->DR;
+    // Vsns2 = ADCmsmnt*(2.5/(1<<16))*4;
+
+    // HAL_Delay(100);
+    // ADC1->CHSELR = 7 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
+    // status |= HAL_ADC_Start(&hadc1);
+    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    // ADCmsmnt = ADC1->DR;
+    // id1 = ADCmsmnt*(2.5/(1<<16));
+
+    // HAL_Delay(100);
+    // ADC1->CHSELR = 3 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
+    // status |= HAL_ADC_Start(&hadc1);
+    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
+    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+    // ADCmsmnt = ADC1->DR;
+    // id2 = ADCmsmnt*(2.5/(1<<16));
+    uint16_t readings[4];
+    readPirani(readings);
+
+    Vsns1 = readings[0]*(2.5/(1<<16))*4;
+    Vsns2 = readings[1]*(2.5/(1<<16))*4;
+    id1 = readings[2]*(2.5/(1<<16));
+        id1 = (id1*11-3.3)/(3.3-id1);   // sensed ID resistance in kOhm
+    id2 = readings[3]*(2.5/(1<<16));
+        id2 = (id2*11-3.3)/(3.3-id2);   // sensed ID resistance in kOhm
+
+    // This error handling if iffy at best
+    if (status){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
+    }
+    else{
+        // txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "id1 = %i.%0*i, V, V1 = %i.%0*i V, id2 = %i.%0*i, V2 = %i.%0*i V\n", 
+        //                                             (int)id1, 2, (int)getDecimals(id1, 2),
+        //                                             (int)Vsns1, 2, (int)getDecimals(Vsns1, 2),
+        //                                             (int)id2, 2, (int)getDecimals(id2, 2),
+        //                                             (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "id1 = %i.%0*ik, V, V1 = %i.%0*i V, id2 = %i.%0*ik, V2 = %i.%0*i V\n", 
+                                                    (int)id1, 2, (int)getDecimals(id1, 2),
+                                                    (int)Vsns1, 2, (int)getDecimals(Vsns1, 2),
+                                                    (int)id2, 2, (int)getDecimals(id2, 2),
+                                                    (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
+    }
+    
+    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    txidx = 0;
+    rxcnt = 0;
+    rxidx = 0;
+    commandReceived = 0;
+}
+
+void readSensorsRaw(const char *params){
+    HAL_StatusTypeDef status = 0;
+    uint16_t ADCmsmnt;
+    float Vsns1, Vsns2, id1, id2;
+
+    uint16_t readings[4];
+    readPirani(readings);
+    // No error handling...
+
+
+    txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "%i, %i, %i, %i\n", 
+                                                readings[0],
+                                                readings[1],
+                                                readings[2],
+                                                readings[3]);
+
+    
+    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    txidx = 0;
+    rxcnt = 0;
+    rxidx = 0;
+    commandReceived = 0;
+}
+
+int readPirani(uint16_t readings[4]){
+    HAL_StatusTypeDef status = 0;
+    uint16_t ADCmsmnt;
+    uint8_t chIdx[] = {6,2,7,3};    // Vsns1, Vsns2, id1, id2
+
+    for (int i=0; i<4; i++){
+        HAL_Delay(100);
+        ADC1->CHSELR = chIdx[i] << ADC_CHSELR_SQ1_Pos;
+        status |= HAL_ADC_Start(&hadc1);
+        status |= HAL_ADC_PollForConversion(&hadc1, 10);
+        // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+        ADCmsmnt = ADC1->DR;
+        readings[i] = ADCmsmnt;
+    }
+
+    return status;
 }

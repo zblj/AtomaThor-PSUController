@@ -20,6 +20,10 @@ int findNextCommandParameter(const char *str);
 void processCommand(void);
 
 void readAdc(const char *params);
-void setDac(const char *params);
+void checkPower(const char *params);
+void readSensors(const char *params);
+void readSensorsRaw(const char *params);
+
+int readPirani(uint16_t readings[4]);
 
 #endif

@@ -50,8 +50,6 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-DAC_HandleTypeDef hdac1;
-
 I2C_HandleTypeDef hi2c1;
 
 LPTIM_HandleTypeDef hlptim1;
@@ -74,7 +72,6 @@ static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_DAC1_Init(void);
 static void MX_LPTIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -121,15 +118,10 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_DAC1_Init();
   MX_LPTIM1_Init();
   /* USER CODE BEGIN 2 */
   HAL_StatusTypeDef status;
   uint16_t DACvalue = 0;
-
-  // DACs need to be started prior to use. That is not the same as HAL init!
-  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
-  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   // EEPROM setup
   uint8_t eeprom_writeData[32] = {0};
@@ -361,56 +353,6 @@ static void MX_CRC_Init(void)
   /* USER CODE BEGIN CRC_Init 2 */
 
   /* USER CODE END CRC_Init 2 */
-
-}
-
-/**
-  * @brief DAC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC1_Init(void)
-{
-
-  /* USER CODE BEGIN DAC1_Init 0 */
-
-  /* USER CODE END DAC1_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC1_Init 1 */
-
-  /* USER CODE END DAC1_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac1.Instance = DAC1;
-  if (HAL_DAC_Init(&hdac1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT1 config
-  */
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC1_Init 2 */
-
-  /* USER CODE END DAC1_Init 2 */
 
 }
 
@@ -685,19 +627,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA);
-  LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOD);
-
-  /**/
-  LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
-
-  /**/
-  GPIO_InitStruct.Pin = OUT_EN_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(OUT_EN_GPIO_Port, &GPIO_InitStruct);
+  LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
 
   /**/
   GPIO_InitStruct.Pin = ADDR0_Pin;
