@@ -5,8 +5,9 @@
 
 #define TX_BUFFER_SIZE 64
 #define RX_BUFFER_SIZE 64
+#define MAX_PARAMS 8
 
-typedef void (*CommandFunc)(const char *params);
+typedef void (*CommandFunc)(const char *params[MAX_PARAMS], int countOfParams);
 
 typedef struct {
     CommandFunc cmd;
@@ -15,11 +16,12 @@ typedef struct {
 
 void USART_IRQ_Hnadler(void);
 
+int splitCommand(char *str, char *cmd, char *params[MAX_PARAMS]);
 int findNextCommandParameter(const char *str);
 
 void processCommand(void);
 
-void readAdc(const char *params);
-void setDac(const char *params);
+void readAdc(const char *params[MAX_PARAMS], int countOfParams);
+void setDac(const char *params[MAX_PARAMS], int countOfParams);
 
 #endif

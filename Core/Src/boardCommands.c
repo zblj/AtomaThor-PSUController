@@ -25,7 +25,7 @@ int rxidx, rxcnt;
 uint8_t commandReceived;
 
 
-void fcn1(const char *params)
+void fcn1(const char *params[MAX_PARAMS], int countOfParams)
 {
     strncpy(tx_buff, "fcn1", TX_BUFFER_SIZE);
     txcnt = rxcnt;
@@ -36,12 +36,19 @@ void fcn1(const char *params)
     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
 }
 
-void fcn2(const char *params)
+void fcn2(const char *params[MAX_PARAMS], int countOfParams)
 {
-    int nextParam;
-    nextParam = findNextCommandParameter(params);
-    int num = atoi(params+nextParam);
+    // int nextParam;
+    // nextParam = findNextCommandParameter(params);
+    // int num = atoi(params+nextParam);
     //strncpy(tx_buff, "fcn1", TX_BUFFER_SIZE);
+
+    if(countOfParams != 1){
+        //TODO
+        return;
+    }
+    int num = atoi(params[0]);
+
     txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "fcn2, %i\n", num);
     txidx = 0;
     rxcnt = 0;
@@ -104,6 +111,41 @@ void USART_IRQ_Hnadler(void){
 
     USART1->ICR = -1; // Clear all interrupt flags, unsafe, but gets the job done
 }
+int splitCommand(char *str, char *cmd, char *params[MAX_PARAMS]) {
+    char *separators = " \t,;\n";
+
+    // Sets the counters
+    int i = 0;              // Counts chars in str
+    int paramsCount = 0;    // Counts the number of parameters found
+
+    // Skips all separators found at the start of the input string
+    while(isSeparator(str[i], separators) && i<RX_BUFFER_SIZE) i++;
+
+    // Check if there is any command, if not returns -1 to signal an error
+    if (!str[i] || i>=RX_BUFFER_SIZE) return -1;
+
+    // Sets cmd to a pointer to the real start of the input string
+    cmd = str + i;
+
+    while(str[i] && i<RX_BUFFER_SIZE && paramsCount<MAX_PARAMS) { // Loops until it goes out of bounds or finds a null terminator or finds the maximum number of parameters
+        if(isSeparator(str[i], separators)) {
+            str[i] = '\0'; // Replaces the first separator encountered with null terminator
+
+            // Skips all following separators until it finds the next parameter or goes out of bounds
+            do {
+                i++;
+            } while (isSeparator(str[i], separators) && i<RX_BUFFER_SIZE);
+
+            // Breaks if it finds a null terminator or goes out of bounds
+            if (!str[i] || i>=RX_BUFFER_SIZE) break;
+
+            params[paramsCount] = str + i; // Adds the next parameter pointer to params
+            paramsCount++;
+        }
+        i++;
+    }
+    return paramsCount;
+}
 
 int findNextCommandParameter(const char *str){
     // Assumes null termination, will work weird otherwise
@@ -151,34 +193,76 @@ void processCommand(void){
     //     commandReceived = 0;
     //     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
     // }
-    int endOfCommand;
-    int comparison;
-    if (commandReceived){
-        for (int i = 0; i < command_count; i++) {
-            endOfCommand = findNextCommandParameter(rx_buff);
-            if (endOfCommand){
-                comparison = strncmp(commands[i].name, rx_buff, endOfCommand);
-            }
-            else{
-                comparison = strcmp(commands[i].name, rx_buff);
-            }
-            if (comparison == 0) {
-                commands[i].cmd(rx_buff + endOfCommand);
+
+
+    // int endOfCommand;
+    // int comparison;
+    // if (commandReceived){
+    //     for (int i = 0; i < command_count; i++) {
+    //         endOfCommand = findNextCommandParameter(rx_buff);
+    //         if (endOfCommand){
+    //             comparison = strncmp(commands[i].name, rx_buff, endOfCommand);
+    //         }
+    //         else{
+    //             comparison = strcmp(commands[i].name, rx_buff);
+    //         }
+    //         if (comparison == 0) {
+    //             commands[i].cmd(rx_buff + endOfCommand);
+    //             return;
+    //         }
+    //     }
+    //     // If no command match was found, do at least clear the buffer
+    //     rxcnt = 0;
+    //     rxidx = 0;
+    //     commandReceived = 0;
+    // }
+
+    char *command;
+    char *params[MAX_PARAMS];
+
+    if(commandReceived){
+        int numOfParams = splitCommand(rx_buff, command, params);
+        if(numOfParams == -1){
+            // TODO: handle no command error
+            rxcnt = 0;
+            rxidx = 0;
+            commandReceived = 0;
+            return;
+        }
+        for(int i = 0; i < command_count; i++){
+            if(strcmp(command, commands[i].name) == 0){
+                commands[i].cmd(params, numOfParams);
                 return;
             }
         }
-        // If no command match was found, do at least clear the buffer
+
+        // TODO: handle no matching command error
         rxcnt = 0;
         rxidx = 0;
         commandReceived = 0;
     }
+
 }
 
-void readAdc(const char *params){
-    int nextParam;
-    nextParam = findNextCommandParameter(params);
-    //int num = atoi(params+nextParam);
-    char channel = params[nextParam];
+void readAdc(const char *params[MAX_PARAMS], int countOfParams){
+    // int nextParam;
+    // nextParam = findNextCommandParameter(params);
+    // //int num = atoi(params+nextParam);
+    // char channel = params[nextParam];
+
+    if(countOfParams != 1){
+        //TODO: handle error invalid number of parameters
+        return;
+    }
+    
+    if(strlen(params[0]) != 1){
+        //TODO: handle error not a single char
+        return;
+    }
+
+    char channel = params[0][0];
+
+
     uint8_t channelIdx = 0;
 
     // Make sure that channel is valid
@@ -249,10 +333,16 @@ void readAdc(const char *params){
     rxidx = 0;
     commandReceived = 0;
 }
-void setDac(const char *params){
-    int nextParam;
-    nextParam = findNextCommandParameter(params);
-    int num = atoi(params+nextParam);
+void setDac(const char *params[MAX_PARAMS], int countOfParams){
+    // int nextParam;
+    // nextParam = findNextCommandParameter(params);
+    // int num = atoi(params+nextParam);
+    if(countOfParams != 1){
+        //TODO handle error
+        return;
+    }
+    int num = atoi(params[0]);
+    
     // Sanity check for valid range
     if ((num<0) || (num>=(1<<12))){
         txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Parameter out of range, must be [0,4095] (is %i)\n", num);
