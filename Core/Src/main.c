@@ -24,6 +24,7 @@
 #include "eeprom.h"
 #include "boardCommands.h"
 #include <string.h>
+#include "stm32g0xx_hal.h"
 #include "stm32g0xx_hal_uart.h"
 #include "stm32g0xx_ll_gpio.h"
 #include "supportingFunctions.h"
@@ -50,11 +51,12 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-DAC_HandleTypeDef hdac1;
-
 I2C_HandleTypeDef hi2c1;
 
 LPTIM_HandleTypeDef hlptim1;
+
+SPI_HandleTypeDef hspi1;
+SPI_HandleTypeDef hspi2;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -74,8 +76,9 @@ static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_DAC1_Init(void);
 static void MX_LPTIM1_Init(void);
+static void MX_SPI1_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -121,15 +124,12 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_DAC1_Init();
   MX_LPTIM1_Init();
+  MX_SPI1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   HAL_StatusTypeDef status;
   uint16_t DACvalue = 0;
-
-  // DACs need to be started prior to use. That is not the same as HAL init!
-  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
-  status = HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
   // EEPROM setup
   uint8_t eeprom_writeData[32] = {0};
@@ -137,38 +137,38 @@ int main(void)
   struct eeprom memory = {&hi2c1, 0xA0, 2, 32};
 
   // ADC setup
-    // Perform self calibration; should be done at startup and after significant temperature shange (eg. 10 °C)
-    HAL_ADCEx_Calibration_Start(&hadc1);
-    VREFBUF->CCR = 0x32;  // Experimentally determined calibration setting to ensure VrefBuf se to 2.5V is actually at 2.5V. Should be stored in EEPROM.
+  // Perform self calibration; should be done at startup and after significant temperature shange (eg. 10 °C)
+  HAL_ADCEx_Calibration_Start(&hadc1);
+  VREFBUF->CCR = 0x32;  // Experimentally determined calibration setting to ensure VrefBuf se to 2.5V is actually at 2.5V. Should be stored in EEPROM.
 
-    // Configuration variable, will likely be removed later on
-    ADC_ChannelConfTypeDef ADCcfg = {0};
-    ADCcfg.Rank = ADC_REGULAR_RANK_1;
-    ADCcfg.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-    ADCcfg.Channel = ADC_CHANNEL_10;
-  
-    // Set ADC sample time
-    ADC1->SMPR =
-        (ADC_SAMPLETIME_1CYCLE_5 << ADC_SMPR_SMP1_Pos) |    // SMP1 set sampling time, will be used for all cahnnels
-        (ADC_SAMPLETIME_160CYCLES_5 << ADC_SMPR_SMP2_Pos) | // Excpet for those using a longer sampling time, listed in next line
-        (1U << ADC_SMPR_SMPSEL12_Pos);                      // Required at least for internal temperature sensor
-  
-    // Internal temperature sensor calibration parameters
-    #define TS_CAL1_TEMP    30.0f      // °C
-    #define TS_CAL2_TEMP    130.0f     // °C
-    #define TS_CAL1_ADDR    ((uint16_t *)0x1FFF75A8)
-    #define TS_CAL2_ADDR    ((uint16_t *)0x1FFF75CA)
-    #define VREFINT_CAL_ADDR    ((uint16_t *)0x1FFF75AA)
-    const float VrefCal = *VREFINT_CAL_ADDR *(3./(1<<12));  // Factory calibration of internal Vref [V]. Not really sure if it is helpful for anything.
+  // Configuration variable, will likely be removed later on
+  ADC_ChannelConfTypeDef ADCcfg = {0};
+  ADCcfg.Rank = ADC_REGULAR_RANK_1;
+  ADCcfg.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  ADCcfg.Channel = ADC_CHANNEL_10;
 
-    // Variables used in validation
-    volatile uint16_t ADCmsmnt;
-    float temperature, Vsns, Vref, Vpwr;
+  // Set ADC sample time
+  ADC1->SMPR =
+      (ADC_SAMPLETIME_1CYCLE_5 << ADC_SMPR_SMP1_Pos) |    // SMP1 set sampling time, will be used for all cahnnels
+      (ADC_SAMPLETIME_160CYCLES_5 << ADC_SMPR_SMP2_Pos) | // Excpet for those using a longer sampling time, listed in next line
+      (1U << ADC_SMPR_SMPSEL12_Pos);                      // Required at least for internal temperature sensor
 
-    // Enable interrupt based communication for RS485 (UART)
-    // Enable auto baud rate; USARTn_RQR_ABBRQ must be set. It fires only once until "USARTn->ISR ABRF" flag is cleared, done by writing "USART1->RQR = USART_RQR_ABRRQ"
-    // USART1->CR2 |= (1 << USART_CR2_ABREN_Pos) | (0x03 << USART_CR2_ABRMODE_Pos);  // Enable Auto Baud Rate and set it to mode 3 (detect 0x55, 'D')
-    USART1->CR1 |= USART_CR1_RXNEIE_RXFNEIE;  // Enable Rx interrupts
+  // Internal temperature sensor calibration parameters
+  #define TS_CAL1_TEMP    30.0f      // °C
+  #define TS_CAL2_TEMP    130.0f     // °C
+  #define TS_CAL1_ADDR    ((uint16_t *)0x1FFF75A8)
+  #define TS_CAL2_ADDR    ((uint16_t *)0x1FFF75CA)
+  #define VREFINT_CAL_ADDR    ((uint16_t *)0x1FFF75AA)
+  const float VrefCal = *VREFINT_CAL_ADDR *(3./(1<<12));  // Factory calibration of internal Vref [V]. Not really sure if it is helpful for anything.
+
+  // Variables used in validation
+  volatile uint16_t ADCmsmnt;
+  float temperature, Vsns, Vref, Vpwr;
+
+  // Enable interrupt based communication for RS485 (UART)
+  // Enable auto baud rate; USARTn_RQR_ABBRQ must be set. It fires only once until "USARTn->ISR ABRF" flag is cleared, done by writing "USART1->RQR = USART_RQR_ABRRQ"
+  // USART1->CR2 |= (1 << USART_CR2_ABREN_Pos) | (0x03 << USART_CR2_ABRMODE_Pos);  // Enable Auto Baud Rate and set it to mode 3 (detect 0x55, 'D')
+  USART1->CR1 |= USART_CR1_RXNEIE_RXFNEIE;  // Enable Rx interrupts
     
 
 
@@ -365,56 +365,6 @@ static void MX_CRC_Init(void)
 }
 
 /**
-  * @brief DAC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC1_Init(void)
-{
-
-  /* USER CODE BEGIN DAC1_Init 0 */
-
-  /* USER CODE END DAC1_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC1_Init 1 */
-
-  /* USER CODE END DAC1_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac1.Instance = DAC1;
-  if (HAL_DAC_Init(&hdac1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT1 config
-  */
-  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
-  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC1_Init 2 */
-
-  /* USER CODE END DAC1_Init 2 */
-
-}
-
-/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -497,6 +447,86 @@ static void MX_LPTIM1_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_1LINE;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi2.Init.CLKPhase = SPI_PHASE_2EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi2.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
   * @brief TIM1 Initialization Function
   * @param None
   * @retval None
@@ -510,8 +540,6 @@ static void MX_TIM1_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
@@ -532,10 +560,6 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
@@ -543,38 +567,9 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.BreakFilter = 0;
-  sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
-  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
-  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
-  sBreakDeadTimeConfig.Break2Filter = 0;
-  sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
-  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -649,7 +644,7 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_RS485Ex_Init(&huart1, UART_DE_POLARITY_HIGH, 0, 0) != HAL_OK)
+  if (HAL_UART_Init(&huart1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -686,42 +681,56 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOA);
   LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
-  LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOD);
 
   /**/
-  LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
+  LL_GPIO_ResetOutputPin(VrefEN_GPIO_Port, VrefEN_Pin);
 
   /**/
-  GPIO_InitStruct.Pin = OUT_EN_Pin;
+  LL_GPIO_ResetOutputPin(USART1_DE_GPIO_Port, USART1_DE_Pin);
+
+  /**/
+  LL_GPIO_SetOutputPin(DACsync_GPIO_Port, DACsync_Pin);
+
+  /**/
+  LL_GPIO_SetOutputPin(ADCcs_GPIO_Port, ADCcs_Pin);
+
+  /**/
+  GPIO_InitStruct.Pin = VrefEN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
   GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(OUT_EN_GPIO_Port, &GPIO_InitStruct);
+  LL_GPIO_Init(VrefEN_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  GPIO_InitStruct.Pin = ADDR0_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pin = DACsync_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(ADDR0_GPIO_Port, &GPIO_InitStruct);
+  LL_GPIO_Init(DACsync_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  GPIO_InitStruct.Pin = ADDR1_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pin = ADCcs_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(ADDR1_GPIO_Port, &GPIO_InitStruct);
+  LL_GPIO_Init(ADCcs_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  GPIO_InitStruct.Pin = ADDR2_Pin;
+  GPIO_InitStruct.Pin = ADCirq_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(ADDR2_GPIO_Port, &GPIO_InitStruct);
+  LL_GPIO_Init(ADCirq_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  GPIO_InitStruct.Pin = ADDR3_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pin = USART1_DE_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(ADDR3_GPIO_Port, &GPIO_InitStruct);
+  LL_GPIO_Init(USART1_DE_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

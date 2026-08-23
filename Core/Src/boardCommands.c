@@ -259,8 +259,8 @@ void setDac(const char *params){
     }
     else {
         HAL_StatusTypeDef status;
-        status  = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, num);
-        status |= HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, num);
+        // status  = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, num);
+        // status |= HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, num);
         // This error handling if iffy at best
         if (status){
             txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Setting DAC returned an error (0x%x)\n", status);

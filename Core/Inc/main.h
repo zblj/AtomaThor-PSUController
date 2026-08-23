@@ -59,8 +59,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -69,30 +67,31 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define Vsns_Pin LL_GPIO_PIN_2
-#define Vsns_GPIO_Port GPIOA
-#define Isns_Pin LL_GPIO_PIN_3
-#define Isns_GPIO_Port GPIOA
-#define Vset_Pin LL_GPIO_PIN_4
-#define Vset_GPIO_Port GPIOA
-#define Iset_Pin LL_GPIO_PIN_5
-#define Iset_GPIO_Port GPIOA
+#define VrefEN_Pin LL_GPIO_PIN_2
+#define VrefEN_GPIO_Port GPIOA
+#define DACclk_Pin LL_GPIO_PIN_5
+#define DACclk_GPIO_Port GPIOA
+#define DACsync_Pin LL_GPIO_PIN_6
+#define DACsync_GPIO_Port GPIOA
+#define DACmosi_Pin LL_GPIO_PIN_7
+#define DACmosi_GPIO_Port GPIOA
 #define V12sns_Pin LL_GPIO_PIN_2
 #define V12sns_GPIO_Port GPIOB
-#define OUT_EN_Pin LL_GPIO_PIN_8
-#define OUT_EN_GPIO_Port GPIOA
-#define ADDR0_Pin LL_GPIO_PIN_0
-#define ADDR0_GPIO_Port GPIOD
-#define ADDR1_Pin LL_GPIO_PIN_1
-#define ADDR1_GPIO_Port GPIOD
-#define ADDR2_Pin LL_GPIO_PIN_2
-#define ADDR2_GPIO_Port GPIOD
-#define ADDR3_Pin LL_GPIO_PIN_3
-#define ADDR3_GPIO_Port GPIOD
+#define ADCcs_Pin LL_GPIO_PIN_12
+#define ADCcs_GPIO_Port GPIOB
+#define ADCsck_Pin LL_GPIO_PIN_13
+#define ADCsck_GPIO_Port GPIOB
+#define ADCmiso_Pin LL_GPIO_PIN_14
+#define ADCmiso_GPIO_Port GPIOB
+#define ADCmosi_Pin LL_GPIO_PIN_15
+#define ADCmosi_GPIO_Port GPIOB
+#define ADCirq_Pin LL_GPIO_PIN_8
+#define ADCirq_GPIO_Port GPIOA
+#define USART1_DE_Pin LL_GPIO_PIN_5
+#define USART1_DE_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 extern ADC_HandleTypeDef hadc1;
-extern DAC_HandleTypeDef hdac1;
 extern I2C_HandleTypeDef hi2c1;
 extern LPTIM_HandleTypeDef hlptim1;
 extern TIM_HandleTypeDef htim1;
