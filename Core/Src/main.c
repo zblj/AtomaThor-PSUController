@@ -170,7 +170,7 @@ int main(void)
   // USART1->CR2 |= (1 << USART_CR2_ABREN_Pos) | (0x03 << USART_CR2_ABRMODE_Pos);  // Enable Auto Baud Rate and set it to mode 3 (detect 0x55, 'D')
   USART1->CR1 |= USART_CR1_RXNEIE_RXFNEIE;  // Enable Rx interrupts
     
-
+  uint8_t tx[32], rx[32];
 
   /* USER CODE END 2 */
 
@@ -231,7 +231,55 @@ int main(void)
     
     // Call the command processing routine (RS485)
     //USART1->RQR = USART_RQR_ABRRQ;  // Reenable ABR for testing purposes
-    processCommand();
+    // processCommand();
+
+    tx[0] = 0;
+    tx[1] = DACvalue>>8;
+    tx[2] = DACvalue & 0xFF;
+
+    HAL_GPIO_WritePin(DACsync_GPIO_Port, DACsync_Pin, 0);
+    // status = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 3, 1000);
+    status = HAL_SPI_Transmit(&hspi1, tx, 3, 1000);
+    HAL_GPIO_WritePin(DACsync_GPIO_Port, DACsync_Pin, 1);
+
+    // SPI2->CR1 |= SPI_CR1_CPHA | SPI_CR1_CPOL; // set mode 11
+    
+    uint8_t addr = 0b01<<6;
+    volatile uint8_t reg = 1;
+    volatile uint8_t value = 0b01100010; // see Config0 register description
+    // ADC quick command to execute a reset
+    tx[0] = addr | 0b01111000;
+    HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 0);
+    // status = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 3, 1000);
+    status = HAL_SPI_TransmitReceive(&hspi2, tx, rx, 1, 1000);
+    HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 1);
+    HAL_Delay(1);
+
+
+
+    // reg = 1;
+    // value = 0b01100010; // see Config0 register description
+    // tx[0] = reg<<2 | 0b10; // command
+    // tx[0] = addr | (tx[0] & 0x3F);
+    // tx[1] = value;
+    // HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 0);
+    // // status = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 3, 1000);
+    // status = HAL_SPI_TransmitReceive(&hspi2, tx, rx, 2, 1000);
+    // HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 1);
+    // HAL_Delay(1);
+
+    // write reg  disable internal reference
+    // tx[0] = reg<<2 | 0b10; // command
+    // tx[0] = addr | (tx[0] & 0x3F);
+    // tx[1] = value;
+    // HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 0);
+    // // status = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 3, 1000);
+    // status = HAL_SPI_TransmitReceive(&hspi2, tx, rx, 2, 1000);
+    // HAL_GPIO_WritePin(ADCcs_GPIO_Port, ADCcs_Pin, 1);
+    // HAL_Delay(1);
+  
+
+    HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
