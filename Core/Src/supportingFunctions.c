@@ -65,6 +65,7 @@ unsigned int getDecimals(float num, uint8_t n){
     return (unsigned int)num;
 }
 
+
 bool isSeparator(char c, char *separators){
     int i = 0;
     while(separators[i]){

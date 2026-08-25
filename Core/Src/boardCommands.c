@@ -4,7 +4,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <ctype.h>
 #include <math.h>
+#include <sys/_types.h>
+#include "stm32g0xx_hal_dac.h"
 #include "supportingFunctions.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -25,9 +29,9 @@ int rxidx, rxcnt;
 uint8_t commandReceived;
 
 
-void fcn1(const char *params[MAX_PARAMS], int countOfParams)
+void fcn1(char *splitCmd[MAX_PARAMS], int countOfParams)
 {
-    strncpy(tx_buff, "fcn1", TX_BUFFER_SIZE);
+    strncpy(tx_buff, "fcn1\n", TX_BUFFER_SIZE);
     txcnt = rxcnt;
     txidx = 0;
     rxcnt = 0;
@@ -36,7 +40,7 @@ void fcn1(const char *params[MAX_PARAMS], int countOfParams)
     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
 }
 
-void fcn2(const char *params[MAX_PARAMS], int countOfParams)
+void fcn2(char *splitCmd[MAX_PARAMS], int countOfParams)
 {
     // int nextParam;
     // nextParam = findNextCommandParameter(params);
@@ -47,7 +51,7 @@ void fcn2(const char *params[MAX_PARAMS], int countOfParams)
         //TODO
         return;
     }
-    int num = atoi(params[0]);
+    int num = atoi(splitCmd[1]);
 
     txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "fcn2, %i\n", num);
     txidx = 0;
@@ -58,10 +62,12 @@ void fcn2(const char *params[MAX_PARAMS], int countOfParams)
 }
 
 static const Command commands[] = {
-    { fcn1, "fn1" },
-    { fcn2, "fn2" },
+    { fcn1, "fcn1" },
+    { fcn2, "fcn2" },
     { setDac, "setDac"},
     { readAdc, "readAdc"},
+    { set, "set"},
+    { help, "help"},
     /* ... */
 };
 
@@ -111,8 +117,8 @@ void USART_IRQ_Hnadler(void){
 
     USART1->ICR = -1; // Clear all interrupt flags, unsafe, but gets the job done
 }
-int splitCommand(char *str, char *cmd, char *params[MAX_PARAMS]) {
-    char *separators = " \t,;\n";
+int splitCommand(char *str, char *splitCmd[MAX_PARAMS]) {
+    char *separators = " \t,;\n\r";
 
     // Sets the counters
     int i = 0;              // Counts chars in str
@@ -124,8 +130,8 @@ int splitCommand(char *str, char *cmd, char *params[MAX_PARAMS]) {
     // Check if there is any command, if not returns -1 to signal an error
     if (!str[i] || i>=RX_BUFFER_SIZE) return -1;
 
-    // Sets cmd to a pointer to the real start of the input string
-    cmd = str + i;
+    // Sets first element of splitCmd to a pointer to the real start of the input string
+    splitCmd[0] = str + i;
 
     while(str[i] && i<RX_BUFFER_SIZE && paramsCount<MAX_PARAMS) { // Loops until it goes out of bounds or finds a null terminator or finds the maximum number of parameters
         if(isSeparator(str[i], separators)) {
@@ -139,89 +145,21 @@ int splitCommand(char *str, char *cmd, char *params[MAX_PARAMS]) {
             // Breaks if it finds a null terminator or goes out of bounds
             if (!str[i] || i>=RX_BUFFER_SIZE) break;
 
-            params[paramsCount] = str + i; // Adds the next parameter pointer to params
             paramsCount++;
+            splitCmd[paramsCount] = str + i; // Adds the next parameter pointer to params
         }
         i++;
     }
     return paramsCount;
 }
 
-int findNextCommandParameter(const char *str){
-    // Assumes null termination, will work weird otherwise
-    char *separators = " \t,;";
-
-    // If the first character is a whitespace, the code must skip over to the first non-white space character
-    uint8_t startedOnWhitespace = 0;
-
-    // int lastSeparator = 0;
-    // Go through maximum command size of characters (but stop if 0 is reached)
-    for(int i=0; i<RX_BUFFER_SIZE; i++){
-        if (str[i] == 0){
-            return 0;
-        }
-        // if the current character is whitespace, return that index unless the code stareted on whitespace
-        for(int j=0; j<(sizeof(separators)/sizeof(separators[0])-1); j++){  //-1 in count calculation to ellimiante \0
-            if (str[i] == separators[j]){
-                // lastSeparator = i;
-                // break;
-                if (i==0){
-                    startedOnWhitespace = 1;    // Although it might be more efficient to do this check in advance, this way we avoid code duplication
-                }
-                if (startedOnWhitespace){
-                    break;
-                }
-                return i;
-            }
-        }
-        if (startedOnWhitespace && (i != 0)){
-            return i;
-        }
-        // return i;
-    }
-    return 0;
-}
 
 void processCommand(void){
-    // if (commandReceived){
-    //     // loopback
-    //     strncpy(tx_buff, rx_buff, rxcnt);
-    //     txcnt = rxcnt;
-    //     txidx = 0;
-    //     rxcnt = 0;
-    //     rxidx = 0;
-    //     commandReceived = 0;
-    //     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    // }
 
-
-    // int endOfCommand;
-    // int comparison;
-    // if (commandReceived){
-    //     for (int i = 0; i < command_count; i++) {
-    //         endOfCommand = findNextCommandParameter(rx_buff);
-    //         if (endOfCommand){
-    //             comparison = strncmp(commands[i].name, rx_buff, endOfCommand);
-    //         }
-    //         else{
-    //             comparison = strcmp(commands[i].name, rx_buff);
-    //         }
-    //         if (comparison == 0) {
-    //             commands[i].cmd(rx_buff + endOfCommand);
-    //             return;
-    //         }
-    //     }
-    //     // If no command match was found, do at least clear the buffer
-    //     rxcnt = 0;
-    //     rxidx = 0;
-    //     commandReceived = 0;
-    // }
-
-    char *command;
-    char *params[MAX_PARAMS];
+    char *splitCmd[MAX_PARAMS] = {0};
 
     if(commandReceived){
-        int numOfParams = splitCommand(rx_buff, command, params);
+        int numOfParams = splitCommand(rx_buff, splitCmd);
         if(numOfParams == -1){
             // TODO: handle no command error
             rxcnt = 0;
@@ -230,13 +168,14 @@ void processCommand(void){
             return;
         }
         for(int i = 0; i < command_count; i++){
-            if(strcmp(command, commands[i].name) == 0){
-                commands[i].cmd(params, numOfParams);
+            if(strcmp(splitCmd[0], commands[i].name) == 0){
+                commands[i].cmd(splitCmd, numOfParams);
                 return;
             }
         }
 
-        // TODO: handle no matching command error
+        
+        help(NULL, 0);
         rxcnt = 0;
         rxidx = 0;
         commandReceived = 0;
@@ -244,23 +183,41 @@ void processCommand(void){
 
 }
 
-void readAdc(const char *params[MAX_PARAMS], int countOfParams){
-    // int nextParam;
-    // nextParam = findNextCommandParameter(params);
-    // //int num = atoi(params+nextParam);
-    // char channel = params[nextParam];
+void help(char *splitCmd[MAX_PARAMS], int countOfParams){
+    const char *help_msg = "Valid commands:\nhelp, readAdc, setDac, set\n";
+    txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, help_msg);
+    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    txidx = 0;
+    rxcnt = 0;
+    rxidx = 0;
+    commandReceived = 0;
+}
+
+void readAdc(char *splitCmd[MAX_PARAMS], int countOfParams){
 
     if(countOfParams != 1){
-        //TODO: handle error invalid number of parameters
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Incorrect number of parameters (required 1, got %d)\n", countOfParams);
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+
         return;
     }
     
-    if(strlen(params[0]) != 1){
-        //TODO: handle error not a single char
+    if(strlen(splitCmd[1]) != 1){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Parameter must only be one character (required 1, got %d)\n", strlen(splitCmd[1]));
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+
         return;
     }
 
-    char channel = params[0][0];
+    char channel = splitCmd[1][0];
 
 
     uint8_t channelIdx = 0;
@@ -283,7 +240,7 @@ void readAdc(const char *params[MAX_PARAMS], int countOfParams){
         channelIdx = 10;
     }
     else{
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be U, I, P, or T (is %c)\n", channel);
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be U, I, P, or T (got %c)\n", channel);
     }
     
     if (channelIdx) {
@@ -333,15 +290,19 @@ void readAdc(const char *params[MAX_PARAMS], int countOfParams){
     rxidx = 0;
     commandReceived = 0;
 }
-void setDac(const char *params[MAX_PARAMS], int countOfParams){
-    // int nextParam;
-    // nextParam = findNextCommandParameter(params);
-    // int num = atoi(params+nextParam);
+void setDac(char *splitCmd[MAX_PARAMS], int countOfParams){
+
     if(countOfParams != 1){
-        //TODO handle error
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Incorrect number of parameters (required 1, got %d)\n", countOfParams);
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+
         return;
     }
-    int num = atoi(params[0]);
+    int num = atoi(splitCmd[1]);
     
     // Sanity check for valid range
     if ((num<0) || (num>=(1<<12))){
@@ -360,6 +321,72 @@ void setDac(const char *params[MAX_PARAMS], int countOfParams){
         }
     }
 
+    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    txidx = 0;
+    rxcnt = 0;
+    rxidx = 0;
+    commandReceived = 0;
+}
+
+void set(char *splitCmd[MAX_PARAMS], int countOfParams){
+    if(countOfParams != 2){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Incorrect number of parameters (required 2, got %d)\n", countOfParams);
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+        return;
+    }
+    if(strlen(splitCmd[1]) != 1){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Parameter must be only one character (required 1, got %d)\n", strlen(splitCmd[1]));
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+        return;
+    }
+
+    double value = atof(splitCmd[2]);
+    HAL_StatusTypeDef status;
+    int32_t dacValue;
+    uint32_t channel;
+    // TODO: must be tested
+    if(toupper(splitCmd[1][0]) == 'U'){
+        dacValue = value*4095/12; // Converts 0-12 -> 0-4095
+        channel = DAC_CHANNEL_1;
+    } else if(toupper(splitCmd[1][0]) == 'I'){
+        dacValue = value*4095/166; // Converts 0-166 -> 0-4095
+        channel = DAC_CHANNEL_2;
+    } else {
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "E: Invalid parameter (must be U or I, got %c)\n", splitCmd[1][0]);
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+        return;
+    }
+
+    if ((dacValue<0) || (dacValue>=(1<<12))){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Parameter out of range, must be [0,4095] (is %ld)\n", dacValue);
+        USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+        txidx = 0;
+        rxcnt = 0;
+        rxidx = 0;
+        commandReceived = 0;
+        return;
+    }
+
+    status = HAL_DAC_SetValue(&hdac1, channel, DAC_ALIGN_12B_R, dacValue);
+
+    if (status){
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Setting DAC returned an error (0x%x)\n", status);
+    } else {
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "DAC channal %c set to %ld\n", toupper(splitCmd[1][0]), dacValue);
+    }
+    
     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
     txidx = 0;
     rxcnt = 0;
