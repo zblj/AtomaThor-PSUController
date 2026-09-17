@@ -20,6 +20,5 @@ int findNextCommandParameter(const char *str);
 void processCommand(void);
 
 void readAdc(const char *params);
-void setDac(const char *params);
 
 #endif

@@ -53,7 +53,6 @@ void fcn2(const char *params)
 static const Command commands[] = {
     { fcn1, "fn1" },
     { fcn2, "fn2" },
-    { setDac, "setDac"},
     { readAdc, "readAdc"},
     /* ... */
 };
@@ -182,21 +181,13 @@ void readAdc(const char *params){
     uint8_t channelIdx = 0;
 
     // Make sure that channel is valid
-    if ((channel == 'u') || (channel == 'U')){
-        channel = 'u';
-        channelIdx = 2;
-    }
-    else if ((channel == 'i') || (channel == 'I')){
-        channel = 'i';
-        channelIdx = 3;
-    }
-    else if ((channel == 't') || (channel == 'T')){
+    if ((channel == 't') || (channel == 'T')){
         channel = 't';
         channelIdx = 12;
     }
     else if ((channel == 'p') || (channel == 'P')){
         channel = 'p';
-        channelIdx = 10;
+        channelIdx = 1;
     }
     else{
         txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be U, I, P, or T (is %c)\n", channel);
@@ -219,14 +210,6 @@ void readAdc(const char *params){
         else{
             Vsns = ADCmsmnt*(2.5/(1<<16));
             // %f formatting can be enabled by adding "set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u _printf_float")" to "cmake\gcc-arm-none-eabi.cmake", but it consumes 12 kB of FLASH
-            if (channel == 'u'){
-                // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Vsns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
-            else if (channel == 'i'){
-                // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Isns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
             if (channel == 'p'){
                 // TODO add calibration and calculations
                 Vsns = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
@@ -240,33 +223,6 @@ void readAdc(const char *params){
                 TS_CAL1_TEMP;
                 txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "MCU core temperature is %i.%0*i C\n", (int)temperature, 2, (int)getDecimals(temperature, 2));
             }
-        }
-    }
-
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
-}
-void setDac(const char *params){
-    int nextParam;
-    nextParam = findNextCommandParameter(params);
-    int num = atoi(params+nextParam);
-    // Sanity check for valid range
-    if ((num<0) || (num>=(1<<12))){
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Parameter out of range, must be [0,4095] (is %i)\n", num);
-    }
-    else {
-        HAL_StatusTypeDef status;
-        status  = HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, num);
-        status |= HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, num);
-        // This error handling if iffy at best
-        if (status){
-            txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Setting DAC returned an error (0x%x)\n", status);
-        }
-        else{
-            txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "DACs set to %i\n", num);
         }
     }
 

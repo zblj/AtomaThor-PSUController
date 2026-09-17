@@ -69,18 +69,18 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define Vsns_Pin LL_GPIO_PIN_2
-#define Vsns_GPIO_Port GPIOA
-#define Isns_Pin LL_GPIO_PIN_3
-#define Isns_GPIO_Port GPIOA
-#define Vset_Pin LL_GPIO_PIN_4
-#define Vset_GPIO_Port GPIOA
-#define Iset_Pin LL_GPIO_PIN_5
-#define Iset_GPIO_Port GPIOA
-#define V12sns_Pin LL_GPIO_PIN_2
-#define V12sns_GPIO_Port GPIOB
-#define OUT_EN_Pin LL_GPIO_PIN_8
-#define OUT_EN_GPIO_Port GPIOA
+#define LED23_Pin LL_GPIO_PIN_0
+#define LED23_GPIO_Port GPIOB
+#define LED22_Pin LL_GPIO_PIN_1
+#define LED22_GPIO_Port GPIOB
+#define LED21_Pin LL_GPIO_PIN_2
+#define LED21_GPIO_Port GPIOB
+#define LED11_Pin LL_GPIO_PIN_10
+#define LED11_GPIO_Port GPIOB
+#define LED12_Pin LL_GPIO_PIN_11
+#define LED12_GPIO_Port GPIOB
+#define LED13_Pin LL_GPIO_PIN_12
+#define LED13_GPIO_Port GPIOB
 #define ADDR0_Pin LL_GPIO_PIN_0
 #define ADDR0_GPIO_Port GPIOD
 #define ADDR1_Pin LL_GPIO_PIN_1
@@ -92,7 +92,6 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 extern ADC_HandleTypeDef hadc1;
-extern DAC_HandleTypeDef hdac1;
 extern I2C_HandleTypeDef hi2c1;
 extern LPTIM_HandleTypeDef hlptim1;
 extern TIM_HandleTypeDef htim1;
