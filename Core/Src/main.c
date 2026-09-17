@@ -162,6 +162,43 @@ int main(void)
     // USART1->CR2 |= (1 << USART_CR2_ABREN_Pos) | (0x03 << USART_CR2_ABRMODE_Pos);  // Enable Auto Baud Rate and set it to mode 3 (detect 0x55, 'D')
     USART1->CR1 |= USART_CR1_RXNEIE_RXFNEIE;  // Enable Rx interrupts
     
+    // Demo for PWM
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+      HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+
+      HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+      HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+      HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+      HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+
+      // Fore some unclear reason, STM doesn't want to set GPIOC timers...
+      LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOC);  // This line is needed, otherwise GPIOC registers can't be changed
+      GPIOC->MODER = (GPIOC->MODER & ~(GPIO_MODER_MODE6 | GPIO_MODER_MODE7)) | (0b10 << GPIO_MODER_MODE6_Pos) | (0b10 << GPIO_MODER_MODE7_Pos);  // Set the correct pins to alternate function mode
+      GPIOC->AFR[0] = (GPIOC->AFR[0] & ~(GPIO_AFRL_AFSEL6 | GPIO_AFRL_AFSEL7)) | (0x2 << GPIO_AFRL_AFSEL6_Pos) | (0x2 << GPIO_AFRL_AFSEL7_Pos); // Set alternate function to 2 (timer output in this case)
+
+      TIM1->CCR1 = 0x7FFF;
+      TIM1->CCR2 = 0x7FFF;
+      TIM1->CCR3 = 0x7FFF;
+      TIM1->CCR4 = 0x7FFF;
+
+      TIM2->CCR1 = 0x7FFF;
+      TIM2->CCR2 = 0x7FFF;
+      TIM2->CCR3 = 0x7FFF;
+      TIM2->CCR4 = 0x7FFF;
+
+      // And naturally, there is a bug in the HAL setup code, so the outputs are not set in PWM mode
+      TIM1->CCMR1 |= 0b0110 << TIM_CCMR1_OC1M_Pos;
+      TIM1->CCMR1 |= 0b0110 << TIM_CCMR1_OC2M_Pos;
+      TIM1->CCMR2 |= 0b0110 << TIM_CCMR2_OC3M_Pos;
+      TIM1->CCMR2 |= 0b0110 << TIM_CCMR2_OC4M_Pos;
+
+      TIM2->CCMR1 |= 0b0110 << TIM_CCMR1_OC1M_Pos;
+      TIM2->CCMR1 |= 0b0110 << TIM_CCMR1_OC2M_Pos;
+      TIM2->CCMR2 |= 0b0110 << TIM_CCMR2_OC3M_Pos;
+      TIM2->CCMR2 |= 0b0110 << TIM_CCMR2_OC4M_Pos;
+
 
 
   /* USER CODE END 2 */
