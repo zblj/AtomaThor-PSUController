@@ -1,12 +1,11 @@
 #ifndef BOARDCOMMANDS_H
 #define BOARDCOMMANDS_H
 
-#include <stdint.h>
-
 #define TX_BUFFER_SIZE 64
 #define RX_BUFFER_SIZE 64
+#define MAX_PARAMS 8
 
-typedef void (*CommandFunc)(const char *params);
+typedef void (*CommandFunc)(char *splitCmd[MAX_PARAMS], int countOfParams);
 
 typedef struct {
     CommandFunc cmd;
@@ -15,11 +14,14 @@ typedef struct {
 
 void USART_IRQ_Hnadler(void);
 
+int splitCommand(char *str, char *splitCmd[MAX_PARAMS]);
 int findNextCommandParameter(const char *str);
 
 void processCommand(void);
 
-void readAdc(const char *params);
-void setDac(const char *params);
+void help(char *splitCmd[MAX_PARAMS], int countOfParams);
+void readAdc(char *splitCmd[MAX_PARAMS], int countOfParams);
+void setDac(char *splitCmd[MAX_PARAMS], int countOfParams);
+void set(char *splitCmd[MAX_PARAMS], int countOfParams);
 
 #endif
