@@ -131,7 +131,6 @@ int main(void)
   // ADC setup
     // Perform self calibration; should be done at startup and after significant temperature shange (eg. 10 °C)
     HAL_ADCEx_Calibration_Start(&hadc1);
-    VREFBUF->CCR = 0x32;  // Experimentally determined calibration setting to ensure VrefBuf se to 2.5V is actually at 2.5V. Should be stored in EEPROM.
 
     // Configuration variable, will likely be removed later on
     ADC_ChannelConfTypeDef ADCcfg = {0};
