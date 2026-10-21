@@ -176,7 +176,43 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint16_t DAC_1 = 0;
+  uint16_t DAC_2 = 0;
+  uint16_t ADC_s = 0;
+  uint16_t ADC_n = 0;
+  uint16_t ADC_p = 0;
+  uint16_t ADC_1 = 0;
+  uint16_t ADC_2 = 0;
   
+  while (1){
+    ADC1->CHSELR = 0 << ADC_CHSELR_SQ1_Pos;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    ADC_s = HAL_ADC_GetValue(&hadc1);
+
+    ADC1->CHSELR = 1 << ADC_CHSELR_SQ1_Pos;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    ADC_n = HAL_ADC_GetValue(&hadc1);
+
+    ADC1->CHSELR = 2 << ADC_CHSELR_SQ1_Pos;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    ADC_p = HAL_ADC_GetValue(&hadc1);
+
+    ADC1->CHSELR = 7 << ADC_CHSELR_SQ1_Pos;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    ADC_1 = HAL_ADC_GetValue(&hadc1);
+
+    ADC1->CHSELR = 6 << ADC_CHSELR_SQ1_Pos;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    ADC_2 = HAL_ADC_GetValue(&hadc1);
+
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, DAC_1);
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, DAC_2);
+  }
   while (1)
   {
     // // DAC test to validate functionality; DACs are 12b
