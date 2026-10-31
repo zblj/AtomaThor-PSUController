@@ -7,6 +7,7 @@
 #include <math.h>
 #include "stm32g0xx_hal.h"
 #include "supportingFunctions.h"
+#include "analogFunctions.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))

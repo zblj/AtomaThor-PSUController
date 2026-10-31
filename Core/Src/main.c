@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "eeprom.h"
 #include "boardCommands.h"
+#include "analogFunctions.h"
 #include <string.h>
 #include "stm32g0xx_hal_uart.h"
 #include "stm32g0xx_ll_gpio.h"
@@ -128,34 +129,7 @@ int main(void)
   uint8_t eeprom_readData[32] = {0};
   struct eeprom memory = {&hi2c1, 0xA0, 2, 32};
 
-  // ADC setup
-    // Perform self calibration; should be done at startup and after significant temperature shange (eg. 10 °C)
-    HAL_ADCEx_Calibration_Start(&hadc1);
-    VREFBUF->CCR = 0x32;  // Experimentally determined calibration setting to ensure VrefBuf se to 2.5V is actually at 2.5V. Should be stored in EEPROM.
-
-    // Configuration variable, will likely be removed later on
-    ADC_ChannelConfTypeDef ADCcfg = {0};
-    ADCcfg.Rank = ADC_REGULAR_RANK_1;
-    ADCcfg.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-    ADCcfg.Channel = ADC_CHANNEL_10;
-  
-    // Set ADC sample time
-    ADC1->SMPR =
-        (ADC_SAMPLETIME_1CYCLE_5 << ADC_SMPR_SMP1_Pos) |    // SMP1 set sampling time, will be used for all cahnnels
-        (ADC_SAMPLETIME_160CYCLES_5 << ADC_SMPR_SMP2_Pos) | // Excpet for those using a longer sampling time, listed in next line
-        (1U << ADC_SMPR_SMPSEL12_Pos);                      // Required at least for internal temperature sensor
-  
-    // Internal temperature sensor calibration parameters
-    #define TS_CAL1_TEMP    30.0f      // °C
-    #define TS_CAL2_TEMP    130.0f     // °C
-    #define TS_CAL1_ADDR    ((uint16_t *)0x1FFF75A8)
-    #define TS_CAL2_ADDR    ((uint16_t *)0x1FFF75CA)
-    #define VREFINT_CAL_ADDR    ((uint16_t *)0x1FFF75AA)
-    const float VrefCal = *VREFINT_CAL_ADDR *(3./(1<<12));  // Factory calibration of internal Vref [V]. Not really sure if it is helpful for anything.
-
-    // Variables used in validation
-    volatile uint16_t ADCmsmnt;
-    float temperature, Vsns, Vref, Vpwr;
+  setupADCs();
 
     // Enable interrupt based communication for RS485 (UART)
     // Enable auto baud rate; USARTn_RQR_ABBRQ must be set. It fires only once until "USARTn->ISR ABRF" flag is cleared, done by writing "USART1->RQR = USART_RQR_ABRRQ"
@@ -192,28 +166,6 @@ int main(void)
     // status = EEPROM_Write(memory, address, size, eeprom_writeData, 1000);
     // status = EEPROM_Read(memory, address, size, eeprom_readData, 1000);
     // HAL_Delay(2);
-
-    // // ADC test for validation
-    //   //ADCcfg.Channel = ADC_CHANNEL_TEMPSENSOR;
-    //   //status = HAL_ADC_ConfigChannel(&hadc1, &ADCcfg);  // This function causes problems
-    // // To Select channel, set the channel index define in oneHotdecode (or replace the function call and simply specify channel index).
-    // // Position in sequencer can be specified as well, if that is used.
-    // ADC1->CHSELR = (oneHotDecode(ADC_CHANNEL_TEMPSENSOR & 0x3FFFF) & 0xf) << ADC_CHSELR_SQ1_Pos; // decode one hot (mask additional info first), mask in case of an error, bitshift to the appropriate position
-    // status = HAL_ADC_Start(&hadc1);
-    // status = HAL_ADC_PollForConversion(&hadc1, 1);
-    // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-
-    // // Calculate voltage from ADC code
-    // Vsns = ADCmsmnt*(2.5/(1<<16));
-
-    // // Calculate the monitored 12V input (when the corresponding ADC channel is selected)
-    // Vpwr = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
-
-    // // Calculate temperature (long sample time, temp. sensor enabled, correct ADC channel selected). Not that the first few samples may be wrong.
-    // temperature = (Vsns - (*TS_CAL1_ADDR *3./4096.)) *
-    //               (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
-    //               ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
-    //               TS_CAL1_TEMP;
     
     // // Demonstrate GPIO output
     // LL_GPIO_SetOutputPin(OUT_EN_GPIO_Port, OUT_EN_Pin);
