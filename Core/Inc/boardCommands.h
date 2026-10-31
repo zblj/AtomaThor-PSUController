@@ -18,6 +18,7 @@ void USART_IRQ_Hnadler(void);
 int findNextCommandParameter(const char *str);
 
 void processCommand(void);
+void transmitMessage(void);
 
 void readAdc(const char *params);
 void checkPower(const char *params);

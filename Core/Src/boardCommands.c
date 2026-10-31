@@ -30,11 +30,7 @@ void fcn1(const char *params)
 {
     strncpy(tx_buff, "fcn1", TX_BUFFER_SIZE);
     txcnt = rxcnt;
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    transmitMessage();
 }
 
 void fcn2(const char *params)
@@ -44,11 +40,7 @@ void fcn2(const char *params)
     int num = atoi(params+nextParam);
     //strncpy(tx_buff, "fcn1", TX_BUFFER_SIZE);
     txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "fcn2, %i\n", num);
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
+    transmitMessage();
 }
 
 static const Command commands[] = {
@@ -97,6 +89,10 @@ void USART_IRQ_Hnadler(void){
     if ((USART1->ISR & USART_ISR_TXE_TXFNF) && (USART1->CR1 & USART_CR1_TXEIE_TXFNFIE)){
         // Copy data from Tx buffer into Tx register until all data is transferred, then disable Tx interrupts
         USART1->TDR = tx_buff[txidx];
+        if (tx_buff[txidx] == 0){
+            txidx--;
+            txidx++;
+        }
         txidx++;
         // Stop when there is no more data to transmit or when the enxt character is \0
         if ((txidx >= txcnt) || (tx_buff[txidx] == 0)){
@@ -144,16 +140,6 @@ int findNextCommandParameter(const char *str){
 }
 
 void processCommand(void){
-    // if (commandReceived){
-    //     // loopback
-    //     strncpy(tx_buff, rx_buff, rxcnt);
-    //     txcnt = rxcnt;
-    //     txidx = 0;
-    //     rxcnt = 0;
-    //     rxidx = 0;
-    //     commandReceived = 0;
-    //     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    // }
     int endOfCommand;
     int comparison;
     if (commandReceived){
@@ -177,6 +163,16 @@ void processCommand(void){
     }
 }
 
+void transmitMessage(void){
+    // The user is expected to fill the tx_buff and set the number of Tx characters before calling this function.
+    // Example:
+    //      txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Hello World!);
+    txidx = 0;
+    rxcnt = 0;
+    rxidx = 0;
+    commandReceived = 0;
+    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts; must be done after setting  indexes, otherwise buggy operation ensues.
+}
 void readAdc(const char *params){
     int nextParam;
     nextParam = findNextCommandParameter(params);
@@ -262,11 +258,7 @@ void readAdc(const char *params){
         }
     }
 
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
+    transmitMessage();
 }
 
 void checkPower(const char *params){
@@ -292,11 +284,7 @@ void checkPower(const char *params){
     
     txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "V1 = %i.%0*i V, V2 = %i.%0*i V\n", (int)Vsns1, 2, (int)getDecimals(Vsns1, 2), (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
     
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
+    transmitMessage();
 }
 
 void readSensors(const char *params){
@@ -362,11 +350,7 @@ void readSensors(const char *params){
                                                     (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
     }
     
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
+    transmitMessage();
 }
 
 void readSensorsRaw(const char *params){
@@ -386,11 +370,7 @@ void readSensorsRaw(const char *params){
                                                 readings[3]);
 
     
-    USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts
-    txidx = 0;
-    rxcnt = 0;
-    rxidx = 0;
-    commandReceived = 0;
+    transmitMessage();
 }
 
 int readPirani(uint16_t readings[4]){
