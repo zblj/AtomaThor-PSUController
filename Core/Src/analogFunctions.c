@@ -3,6 +3,8 @@
 #include "stm32g051xx.h"
 #include "stm32g0xx_hal.h"
 #include "supportingFunctions.h"
+#include "stm32g0xx_ll_adc.h"
+#include <math.h>
 
 uint16_t ADCmeasurements[8]; // A placeholder for storing ADC readings
 
@@ -74,4 +76,27 @@ void setupADCs(void){
 
     // Start the ADC
     ADC1->CR |= ADC_CR_ADEN | ADC_CR_ADSTART;
+}
+
+float getVoltage(uint8_t channel){
+    if (channel >= sizeof(ADCmeasurements)/sizeof(ADCmeasurements[0])){
+        return NAN;
+    }
+    float Vsns = (ADCmeasurements[channel] * atp.Vref / (1<<16)) * atp.Again[channel] + atp.Aoffset[channel];
+    return Vsns;
+}
+
+float getTemperature(uint16_t msmnt){
+    float temperature, Vsns;
+    
+    Vsns = msmnt*(atp.Vref/(1<<16));
+    temperature = (Vsns - (*TEMPSENSOR_CAL1_ADDR * (TEMPSENSOR_CAL_VREFANALOG / 1000.f / 4096.f))) *
+    (TEMPSENSOR_CAL2_TEMP - TEMPSENSOR_CAL1_TEMP) / 
+    ((*TEMPSENSOR_CAL2_ADDR - *TEMPSENSOR_CAL1_ADDR) * (TEMPSENSOR_CAL_VREFANALOG / 1000.f / 4096.f)) + 
+    TEMPSENSOR_CAL1_TEMP;
+
+    // Apply trimming correction
+    temperature = temperature * atp.Tgain + atp.Toffset;
+
+    return temperature;
 }
