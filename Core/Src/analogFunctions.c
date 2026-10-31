@@ -6,6 +6,17 @@
 
 uint16_t ADCmeasurements[8]; // A placeholder for storing ADC readings
 
+AnalogTrimmingValues atp =
+{
+    .Vref = 2.5f,
+    .Again       = { 1,1,1,1,1,1,1,1},
+    .Aoffset     = { 0,0,0,0,0,0,0,0},
+    .Dgain       = { 1,1},
+    .Doffset     = { 0,0},
+    .Tgain       = 1,
+    .Toffset     = 0,
+};
+
 void ADC1_COMP_IRQHandler(void){
     static uint8_t chIdx = 0;
     uint16_t isr = ADC1->ISR;
