@@ -201,19 +201,32 @@ void readAdc(const char *params){
         channel = 'p';
         channelIdx = 10;
     }
+    else if ((channel >= '0') && (channel <= '9')){
+        channelIdx = channel - '0';
+    }
     else{
         txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be U, I, P, or T (is %c)\n", channel);
     }
     
-    if (channelIdx) {
+    if (channel) {
         HAL_StatusTypeDef status;
         uint16_t ADCmsmnt;
         float Vsns;
+        uint32_t t0, t1, t2, t3, dt1, dt2;
+
+        t0 = SysTick->VAL;
+        t2 = HAL_GetTick();
 
         ADC1->CHSELR = channelIdx << ADC_CHSELR_SQ1_Pos;
         status = HAL_ADC_Start(&hadc1);
-        status |= HAL_ADC_PollForConversion(&hadc1, 10);
+        status |= HAL_ADC_PollForConversion(&hadc1, 100);
         ADCmsmnt = HAL_ADC_GetValue(&hadc1);
+
+        t1 = SysTick->VAL;
+        t3 = HAL_GetTick();
+        dt1 = t1-t0;
+        dt2 = t3-t2;
+
         // This error handling if iffy at best
         if (status){
             txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
@@ -242,6 +255,9 @@ void readAdc(const char *params){
                 ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
                 TS_CAL1_TEMP;
                 txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "MCU core temperature is %i.%0*i C\n", (int)temperature, 2, (int)getDecimals(temperature, 2));
+            }
+            else{
+                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "ADC ch%c is at %i.%0*i V\n", channel, (int)Vsns, 2, (int)getDecimals(Vsns, 2));
             }
         }
     }
