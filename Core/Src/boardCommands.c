@@ -50,7 +50,6 @@ static const Command commands[] = {
     { readAdc, "readAdc"},
     { checkPower, "pwr"},
     { readSensors, "sns"},
-    { readSensorsRaw, "snsRaw"},
     /* ... */
 };
 
@@ -175,113 +174,32 @@ void transmitMessage(void){
     USART1->CR1 |= USART_CR1_TXEIE_TXFNFIE;  // Enable Tx interrupts; must be done after setting  indexes, otherwise buggy operation ensues.
 }
 void readAdc(const char *params){
+    const int decimals = 3;
     int nextParam;
     nextParam = findNextCommandParameter(params);
-    //int num = atoi(params+nextParam);
     char channel = params[nextParam];
-    uint8_t channelIdx = 0;
 
     // Make sure that channel is valid
-    if ((channel == 'u') || (channel == 'U')){
-        channel = 'u';
-        channelIdx = 2;
-    }
-    else if ((channel == 'i') || (channel == 'I')){
-        channel = 'i';
-        channelIdx = 3;
+    if ((channel-'0') <= 7){
+        float Vsns = getVoltage(channel-'0');
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "V%i = %i.%0*i V\n", (int)channel-'0', (int)Vsns, decimals, (int)getDecimals(Vsns, decimals));
     }
     else if ((channel == 't') || (channel == 'T')){
-        channel = 't';
-        channelIdx = 12;
-    }
-    else if ((channel == 'p') || (channel == 'P')){
-        channel = 'p';
-        channelIdx = 10;
-    }
-    else if ((channel >= '0') && (channel <= '9')){
-        channelIdx = channel - '0';
+        float temperature = getTemperature(ADCmeasurements[6]);
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "T = %i.%0*i C\n", (int)temperature, 2, (int)getDecimals(temperature, 2));
     }
     else{
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be U, I, P, or T (is %c)\n", channel);
+        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Chennel should be '0'-'7' or 'T' (is '%c')\n", channel);
     }
     
-    if (channel) {
-        HAL_StatusTypeDef status;
-        uint16_t ADCmsmnt;
-        float Vsns;
-        uint32_t t0, t1, t2, t3, dt1, dt2;
-
-        t0 = SysTick->VAL;
-        t2 = HAL_GetTick();
-
-        ADC1->CHSELR = channelIdx << ADC_CHSELR_SQ1_Pos;
-        status = HAL_ADC_Start(&hadc1);
-        status |= HAL_ADC_PollForConversion(&hadc1, 100);
-        ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-
-        t1 = SysTick->VAL;
-        t3 = HAL_GetTick();
-        dt1 = t1-t0;
-        dt2 = t3-t2;
-
-        // This error handling if iffy at best
-        if (status){
-            txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
-        }
-        
-        else{
-            Vsns = ADCmsmnt*(2.5/(1<<16));
-            // %f formatting can be enabled by adding "set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u _printf_float")" to "cmake\gcc-arm-none-eabi.cmake", but it consumes 12 kB of FLASH
-            if (channel == 'u'){
-                // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Vsns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
-            else if (channel == 'i'){
-                // TODO add calibration and calculations
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Isns = %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
-            if (channel == 'p'){
-                // TODO add calibration and calculations
-                Vsns = Vsns*11; // Vpwr passes through 100/10 resistor divider, this calculation ondoes that.
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Main board supply is at %i.%0*i V\n", (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
-            else if (channel == 't'){
-                float temperature;
-                temperature = (Vsns - (*TS_CAL1_ADDR *3./4096.)) *
-                (TS_CAL2_TEMP - TS_CAL1_TEMP) / 
-                ((*TS_CAL2_ADDR - *TS_CAL1_ADDR)*3./4096.) + 
-                TS_CAL1_TEMP;
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "MCU core temperature is %i.%0*i C\n", (int)temperature, 2, (int)getDecimals(temperature, 2));
-            }
-            else{
-                txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "ADC ch%c is at %i.%0*i V\n", channel, (int)Vsns, 2, (int)getDecimals(Vsns, 2));
-            }
-        }
-    }
-
     transmitMessage();
 }
 
 void checkPower(const char *params){
-    HAL_StatusTypeDef status = 0;
-    uint16_t ADCmsmnt;
     float Vsns1, Vsns2;
 
-    ADC1->CHSELR = 1 << ADC_CHSELR_SQ1_Pos; // Primary power is on ADC1
-    status |= HAL_ADC_Start(&hadc1);
-    status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    Vsns1 = ADCmsmnt*(2.5/(1<<16))*11;
-
-    ADC1->CHSELR = 0 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
-    status |= HAL_ADC_Start(&hadc1);
-    status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    Vsns2 = ADCmsmnt*(2.5/(1<<16))*11;
-    // This error handling if iffy at best
-    if (status){
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
-    }
+    Vsns1 = getVoltage(0) *11;
+    Vsns2 = getVoltage(1) *11;
     
     txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "V1 = %i.%0*i V, V2 = %i.%0*i V\n", (int)Vsns1, 2, (int)getDecimals(Vsns1, 2), (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
     
@@ -289,105 +207,39 @@ void checkPower(const char *params){
 }
 
 void readSensors(const char *params){
-    HAL_StatusTypeDef status = 0;
-    uint16_t ADCmsmnt;
     float Vsns1, Vsns2, id1, id2;
 
-    // HAL_Delay(100);
-    // ADC1->CHSELR = 6 << ADC_CHSELR_SQ1_Pos; // Primary power is on ADC1
-    // status |= HAL_ADC_Start(&hadc1);
-    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    // ADCmsmnt = ADC1->DR;
-    // Vsns1 = ADCmsmnt*(2.5/(1<<16))*4;
-
-    // HAL_Delay(100);
-    // ADC1->CHSELR = 2 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
-    // status |= HAL_ADC_Start(&hadc1);
-    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    // ADCmsmnt = ADC1->DR;
-    // Vsns2 = ADCmsmnt*(2.5/(1<<16))*4;
-
-    // HAL_Delay(100);
-    // ADC1->CHSELR = 7 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
-    // status |= HAL_ADC_Start(&hadc1);
-    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    // ADCmsmnt = ADC1->DR;
-    // id1 = ADCmsmnt*(2.5/(1<<16));
-
-    // HAL_Delay(100);
-    // ADC1->CHSELR = 3 << ADC_CHSELR_SQ1_Pos; // Relay power is on ADC0
-    // status |= HAL_ADC_Start(&hadc1);
-    // status |= HAL_ADC_PollForConversion(&hadc1, 10);
-    // // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-    // ADCmsmnt = ADC1->DR;
-    // id2 = ADCmsmnt*(2.5/(1<<16));
-    uint16_t readings[4];
+    float readings[4];
     readPirani(readings);
 
-    Vsns1 = readings[0]*(2.5/(1<<16))*4;
-    Vsns2 = readings[1]*(2.5/(1<<16))*4;
-    id1 = readings[2]*(2.5/(1<<16));
-        id1 = (id1*11-3.3)/(3.3-id1);   // sensed ID resistance in kOhm
-    id2 = readings[3]*(2.5/(1<<16));
-        id2 = (id2*11-3.3)/(3.3-id2);   // sensed ID resistance in kOhm
+    Vsns1 = readings[0];
+    Vsns2 = readings[1];
+    id1 = readings[2];
+    id2 = readings[3];
 
-    // This error handling if iffy at best
-    if (status){
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE, "Reading ADC failed with error 0x%x\n", status);
-    }
-    else{
-        // txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "id1 = %i.%0*i, V, V1 = %i.%0*i V, id2 = %i.%0*i, V2 = %i.%0*i V\n", 
-        //                                             (int)id1, 2, (int)getDecimals(id1, 2),
-        //                                             (int)Vsns1, 2, (int)getDecimals(Vsns1, 2),
-        //                                             (int)id2, 2, (int)getDecimals(id2, 2),
-        //                                             (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
-        txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "id1 = %i.%0*ik, V, V1 = %i.%0*i V, id2 = %i.%0*ik, V2 = %i.%0*i V\n", 
-                                                    (int)id1, 2, (int)getDecimals(id1, 2),
-                                                    (int)Vsns1, 2, (int)getDecimals(Vsns1, 2),
-                                                    (int)id2, 2, (int)getDecimals(id2, 2),
-                                                    (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
-    }
+    txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "id1 = %i.%0*ik, V1 = %i.%0*i V, id2 = %i.%0*ik, V2 = %i.%0*i V\n", 
+                (int)id1, 2, (int)getDecimals(id1, 2),
+                (int)Vsns1, 2, (int)getDecimals(Vsns1, 2),
+                (int)id2, 2, (int)getDecimals(id2, 2),
+                (int)Vsns2, 2, (int)getDecimals(Vsns2, 2));
     
     transmitMessage();
 }
 
-void readSensorsRaw(const char *params){
-    HAL_StatusTypeDef status = 0;
-    uint16_t ADCmsmnt;
-    float Vsns1, Vsns2, id1, id2;
-
-    uint16_t readings[4];
-    readPirani(readings);
-    // No error handling...
-
-
-    txcnt = snprintf(tx_buff, TX_BUFFER_SIZE,  "%i, %i, %i, %i\n", 
-                                                readings[0],
-                                                readings[1],
-                                                readings[2],
-                                                readings[3]);
-
-    
-    transmitMessage();
+int readPirani(float readings[4]){
+    readings[0] = getVoltage(2)*4;  // Vsns1
+    readings[1] = getVoltage(4)*4;  // Vsns2
+    readings[2] = readResistance(getVoltage(3));    // id1 in kOhm
+    readings[3] = readResistance(getVoltage(5));    // id2 in kOhm
+    return 0;
 }
 
-int readPirani(uint16_t readings[4]){
-    HAL_StatusTypeDef status = 0;
-    uint16_t ADCmsmnt;
-    uint8_t chIdx[] = {6,2,7,3};    // Vsns1, Vsns2, id1, id2
+float readResistance(float voltage){
+    const float Vp = 3.3f;  // pullup voltage
+    const float Rr = 10.f; // reference resisstor in kOhm
+    const float Rp = 1.f;  // protection resistor in kOhm
+    float resistance;
 
-    for (int i=0; i<4; i++){
-        HAL_Delay(100);
-        ADC1->CHSELR = chIdx[i] << ADC_CHSELR_SQ1_Pos;
-        status |= HAL_ADC_Start(&hadc1);
-        status |= HAL_ADC_PollForConversion(&hadc1, 10);
-        // ADCmsmnt = HAL_ADC_GetValue(&hadc1);
-        ADCmsmnt = ADC1->DR;
-        readings[i] = ADCmsmnt;
-    }
-
-    return status;
+    resistance = Rr*voltage / (Vp-voltage) - Rp;
+    return resistance;
 }

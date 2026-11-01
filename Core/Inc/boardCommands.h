@@ -23,8 +23,8 @@ void transmitMessage(void);
 void readAdc(const char *params);
 void checkPower(const char *params);
 void readSensors(const char *params);
-void readSensorsRaw(const char *params);
 
-int readPirani(uint16_t readings[4]);
+int readPirani(float readings[4]);
+float readResistance(float voltage);
 
 #endif
